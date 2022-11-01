@@ -37,7 +37,7 @@ $Window = [Windows.Markup.XamlReader]::Load($Reader)
 
 ##System Vars
 $script:program_title = "Bullet Blender"
-$script:program_version = "1.6 (Beta - 3 Feb 2022)"
+$script:program_version = "1.7 (1 Nov 2022)"
 $script:settings = @{};                    #Contains System Settings
 $script:return = 0;                        #Catches return from certain functions
 $script:logfile = "$dir\Resources\Required\Log.txt"; if(Test-Path -literalpath $script:logfile)
@@ -4293,6 +4293,14 @@ function update_sizer_box
     $counter = 0;
     $location = 0;
     $last_location = 0;
+
+    $limit_number = 2718;
+
+    if($script:settings['EVAL_FORMAT'] -eq 2)
+    {
+        $limit_number = 115;
+    }
+
     foreach($sizer_line in $sizer_text_split)
     { 
         $counter++
@@ -4301,7 +4309,7 @@ function update_sizer_box
             [int]$real_size = $script:bullets_and_sizes[$script:bullets_and_lines[$counter]]
             $sizer_box.SelectionStart = $location
             $sizer_box.SelectionLength = $sizer_line.length   
-            if($real_size -le 2718)
+            if($real_size -le $limit_number)
             {
                 $sizer_box.SelectionColor = [System.Drawing.ColorTranslator]::FromHtml($script:theme_settings['TEXT_CALCULATOR_UNDER_COLOR'])
                 #$sizer_box.Font = [Drawing.Font]::New($script:theme_settings['EDITOR_FONT'], [Decimal]$script:theme_settings['EDITOR_FONT_SIZE'])
@@ -4314,7 +4322,7 @@ function update_sizer_box
             
             if($script:settings['SIZER_BOX_INVERTED'] -eq 1)
             {
-                $real_size = 2718 - $real_size
+                $real_size = $limit_number - $real_size
                 $sizer_box.SelectedText = "$real_size"
             }
             else
@@ -4360,50 +4368,11 @@ function update_sizer_box
 ######Calculate Text Size New###################################################
 function calculate_text_size_new($line)
 {
-    ##############################################################
-    ##Get Line Length
-    [double]$size = 0;
-    for ($i = 0; $i -lt $line.length; $i++)
+    #########Original Format
+    if($script:settings['EVAL_FORMAT'] -eq 1)
     {
-        $character = $line[$i]
-        if($character_blocks.Contains("$character"))
-        {
-            $size = $size + ($character_blocks["$character"])
-        }
-        else
-        {
-            write-host "Missing Character Block For `"$character`""
-            #exit
-        }
-    }
-    return $size
-}
-################################################################################
-######Calculate Text Size#######################################################
-function calculate_text_size
-{
-
-    
-    #$editor.Font = [Drawing.Font]::New($script:theme_settings['EDITOR_FONT'], [Decimal]$script:theme_settings['EDITOR_FONT_SIZE']) #added to fix font resets
-    
-    #############################################################################################################################################################
-    ######Calculate Text Size
-
-
-    ########################################################Text Compression setup
-    if($script:space_hash.get_count() -ne 0)
-    {
-        $ghost_editor.text = $ghost_editor.text -replace " | | ", " "
-    }
-
-
-    $lines = $ghost_editor.text -split "`n";
-    $text = "";
-    $compressed_lines = new-object System.Collections.Hashtable
-    $position = 0;
-    foreach($line in $lines)
-    {   
-        ########################################################Get Current Line Size
+        ##############################################################
+        ##Get Line Length
         [double]$size = 0;
         for ($i = 0; $i -lt $line.length; $i++)
         {
@@ -4418,118 +4387,14 @@ function calculate_text_size
                 #exit
             }
         }
-
-        #######################################################Text Compression
-        [int]$length = 2718 - $size
-        if($script:space_hash.get_count() -ne 0)
-        {
-            #write-host $size = $length
-            $matches = [regex]::Matches("$line"," ")
-            $stop = 0;
-            if($matches.Success)
-            {  
-                foreach($space_type in $space_hash.GetEnumerator() | sort value -Descending) #Loop 1
-                {
-                    #write-host Type: $space_type.value
-                    if($stop -eq 1)
-                    {
-                        break
-                    }
-                    foreach($match in $matches) #Loop2
-                    {
-                        if($match.index -ne 1)
-                        {
-                            if(($stop -ne 1) -and ($size -gt 2718))
-                            {
-                                #$current_space = $line.substring($match.index,1)
-                                #$current_size = $character_blocks["$current_space"]
-                                #$size = $size - $current_size
-                                #$size = $size + $space_type.Value
-                                #$line = $line.remove($match.index,1)
-                                #$line = $line.insert($match.index,$space_type.key)
-                                        
-                                $current_space = $ghost_editor.text.substring(($position + $match.index),1)                #Applies to entire block of text
-                                $current_size = $character_blocks["$current_space"]                                        #Get size of space currently there
-                                $size = $size - $current_size                                                              #Applies to line only
-                                $size = $size + $space_type.Value                                                          #Applies to line only
-                                $ghost_editor.text = $ghost_editor.text.remove(($position + $match.index),1)               #Applies to entire block of text
-                                $ghost_editor.text = $ghost_editor.text.insert(($position + $match.index),$space_type.key) #Applies to entire block of text
-
-                                #write-host $line
-                            }
-                            if($size -le 2718)
-                            {
-                                #write-host Compression Success
-                                #write-host $line
-                                $stop = 1;
-                                [int]$size = $size
-                                #write-host New Size: $size
-                                break
-                            }
-                        }
-                    }
-                }
-                if($stop -eq 0)
-                {
-                    #write-host Compression Failed
-                    #write-host $line
-                }
-            }
-        }
-        #############################################################Shorthand 
-        [int]$size = 2718 - $size
-        if(($size -gt 2718))
-        {
-            [string]$size = ""
-        }
-        $text = $text + $size + "`n"
-        $position = $position + $line.Length + 1;
     }
-
-    #############################################################################
-    ######Build a Ghost RTB
-            
-    $ghost_sizer_box.Multiline = $True
-    $ghost_sizer_box.text = $text
-    $ghost_sizer_box.SelectAll();
-    $ghost_sizer_box.Forecolor = [System.Drawing.ColorTranslator]::FromHtml($script:theme_settings['TEXT_CALCULATOR_UNDER_COLOR'])
-    $ghost_sizer_box.Font = [Drawing.Font]::New($script:theme_settings['EDITOR_FONT'], [Decimal]$script:theme_settings['EDITOR_FONT_SIZE'])          
-    $ghost_sizer_box.SelectionColor = [System.Drawing.ColorTranslator]::FromHtml($script:theme_settings['TEXT_CALCULATOR_UNDER_COLOR'])    
-                     
-    $pattern = "-\d+`n"
-    $matches = [regex]::Matches("$text", $pattern)
-    if($matches.Success)
-    {  
-        foreach($match in $matches)
-        {
-            $ghost_sizer_box.SelectionStart = $match.index
-            $ghost_sizer_box.SelectionLength = $match.value.length
-            $ghost_sizer_box.SelectionColor = [System.Drawing.ColorTranslator]::FromHtml($script:theme_settings['TEXT_CALCULATOR_OVER_COLOR'])
-            $ghost_sizer_box.Font = [Drawing.Font]::New($script:theme_settings['EDITOR_FONT'], [Decimal]$script:theme_settings['EDITOR_FONT_SIZE'])
-            $ghost_sizer_box.DeselectAll()
-        }
+    #########My Eval Format
+    if($script:settings['EVAL_FORMAT'] -eq 2)
+    {
+        $size = $line.length
+        #write-host $size
     }
-    $ghost_sizer_box.SelectAll()
-    $ghost_sizer_box.Font = [Drawing.Font]::New($script:theme_settings['EDITOR_FONT'], [Decimal]$script:theme_settings['EDITOR_FONT_SIZE'])
-    ##############################################################################
-    #######Transfer to Real Sizer
-    if($ghost_sizer_box.rtf -ne $sizer_box.Selectedrtf)
-    {   
-        $sizer_box_caret = $sizer_box.SelectionStart;
-        $start = $sizer_box.SelectionStart
-        $length = $sizer_box.SelectionLength
-        $sizer_box.rtf = $ghost_sizer_box.rtf
-        $sizer_box.SelectionStart = $sizer_box_caret
-        $sizer_box.SelectionStart = $start;
-        $sizer_box.SelectionLength = $length;
-        
-        while($sizer_box.ZoomFactor -ne $script:zoom) 
-        {
-            #Zoom Changes during RTF replace, but won't change in time... this is a work around.
-            $sizer_box.ZoomFactor = $script:zoom
-        }                             
-    }
-    ##############################################################################################################################################################
+    return $size
 }
 ################################################################################
 ######Scan Text#################################################################
@@ -4537,113 +4402,123 @@ function scan_text
 {
     $ghost_editor.Rtf = $editor.Rtf
     
-
     ########################################################
-    ##Compression
-    if($script:space_hash.get_count() -ne 0)
+    ##Format Classic Compression
+    if($script:settings['EVAL_FORMAT'] -eq 1)
     {
-        $lines = $ghost_editor.text -split "`n";
-        $position = 0;
-        $line_count = 0;
-        foreach($line in $lines)
+        ########################################################
+        ##Compression
+        if($script:space_hash.get_count() -ne 0)
         {
-            $line_count++;
-            if($line -ne "")
+            $lines = $ghost_editor.text -split "`n";
+            $position = 0;
+            $line_count = 0;
+            foreach($line in $lines)
             {
-                if(!($script:bullets_compressed.contains($line)))
+                $line_count++;
+                if($line -ne "")
                 {
-                    ############################################
-                    ##Get Current Bullet Size
-                    $original = $line;
-                    $line = $line -replace " | | ", " "
-                    $ghost_editor.SelectionStart = $position
-                    $ghost_editor.SelectionLength = $line.length
-                    $ghost_editor.SelectedText = $line
-
-                    $size = calculate_text_size_new $line
-                
-                    #write-host RL = $line = $size
-                    ############################################
-                    ##Attempt to Compress
-                
-                    $matches = [regex]::Matches("$line"," ")
-                    $stop = 0;
-                    if($matches)
-                    {  
-                        foreach($space_type in $space_hash.GetEnumerator() | sort value -Descending) #Loop 1
-                        {
-                            #write-host Type: $space_type.value
-                            if($stop -eq 1)
-                            {
-                                break
-                            }
-                            foreach($match in $matches) #Loop2
-                            {
-                                if($match.index -ne 1)
-                                {
-                                    if(($stop -ne 1) -and ($size -gt 2718))
-                                    {
-                                        $current_space = $ghost_editor.text.substring(($position + $match.index),1)                #Applies to entire block of text
-                                        $current_size = $character_blocks["$current_space"]   
-                                        if($current_size -ne $space_type.value)
-                                        {
-                                            #Space is different size
-                                            $line = $line.remove($match.index,1)
-                                            $line = $line.insert($match.index,$space_type.key)
-                                        
-                                        
-                                            $current_size = $character_blocks["$current_space"]                                        #Get size of space currently there
-                                            #write-host CS = $current_size
-                                            #write-host Pre $size
-                                       
-                                            $size = $size - $current_size                                                              #Applies to line only
-                                            $size = $size + $space_type.Value    
-                                            #write-host Pos $size                                                      #Applies to line only
-                                            $ghost_editor.text = $ghost_editor.text.remove(($position + $match.index),1)               #Applies to entire block of text
-                                            $ghost_editor.text = $ghost_editor.text.insert(($position + $match.index),$space_type.key) #Applies to entire block of text
-                                        }
-                                        else
-                                        {
-                                            #write-host space match
-                                        }
-                                    }
-                                    if($size -le 2718)
-                                    {
-                                        #write-host Compression Success
-                                        #write-host $line
-                                        $stop = 1;
-                                        [int]$size = $size
-                                        #write-host New Size: $size
-                                        break
-                                    }
-                                }
-                            }#Foreach Match
-                        }#Foreach Type
-                    }#Matches Success
-                    ############################################
-                    ##Index Bullet in 3 Bullet tracking hashes
-                    $script:bullets_compressed[$line] = $size
-                    $script:bullets_and_lines[$line_count] = $line
-                    if($script:bullets_and_sizes.contains($original))
+                    if(!($script:bullets_compressed.contains($line)))
                     {
-                        $script:bullets_and_sizes.remove($original);
-                        if(!($script:bullets_and_sizes.contains($line)))
-                        {
-                            $script:bullets_and_sizes.add($line,$size);
-                        }
-                    }             
-                }#Already Compressed
-                else
-                {
-                    #write-host Already Compressed
-                }
-            }#Blank Line
-            $position = $position + $line.Length + 1;
-        }#Foreach Line
-        
-        update_sizer_box
-    }#Compression ON
+                        ############################################
+                        ##Get Current Bullet Size
+                        $original = $line;
+                        $line = $line -replace " | | ", " "
+                        $ghost_editor.SelectionStart = $position
+                        $ghost_editor.SelectionLength = $line.length
+                        $ghost_editor.SelectedText = $line
 
+                        $size = calculate_text_size_new $line
+                
+                        #write-host RL = $line = $size
+                        ############################################
+                        ##Attempt to Compress
+                
+                        $matches = [regex]::Matches("$line"," ")
+                        $stop = 0;
+                        if($matches)
+                        {  
+                            foreach($space_type in $space_hash.GetEnumerator() | sort value -Descending) #Loop 1
+                            {
+                                #write-host Type: $space_type.value
+                                if($stop -eq 1)
+                                {
+                                    break
+                                }
+                                foreach($match in $matches) #Loop2
+                                {
+                                    if($match.index -ne 1)
+                                    {
+                                        if(($stop -ne 1) -and ($size -gt 2718))
+                                        {
+                                            $current_space = $ghost_editor.text.substring(($position + $match.index),1)                #Applies to entire block of text
+                                            $current_size = $character_blocks["$current_space"]   
+                                            if($current_size -ne $space_type.value)
+                                            {
+                                                #Space is different size
+                                                $line = $line.remove($match.index,1)
+                                                $line = $line.insert($match.index,$space_type.key)
+                                        
+                                        
+                                                $current_size = $character_blocks["$current_space"]                                        #Get size of space currently there
+                                                #write-host CS = $current_size
+                                                #write-host Pre $size
+                                       
+                                                $size = $size - $current_size                                                              #Applies to line only
+                                                $size = $size + $space_type.Value    
+                                                #write-host Pos $size                                                      #Applies to line only
+                                                $ghost_editor.text = $ghost_editor.text.remove(($position + $match.index),1)               #Applies to entire block of text
+                                                $ghost_editor.text = $ghost_editor.text.insert(($position + $match.index),$space_type.key) #Applies to entire block of text
+                                            }
+                                            else
+                                            {
+                                                #write-host space match
+                                            }
+                                        }
+                                        if($size -le 2718)
+                                        {
+                                            #write-host Compression Success
+                                            #write-host $line
+                                            $stop = 1;
+                                            [int]$size = $size
+                                            #write-host New Size: $size
+                                            break
+                                        }
+                                    }
+                                }#Foreach Match
+                            }#Foreach Type
+                        }#Matches Success
+                        ############################################
+                        ##Index Bullet in 3 Bullet tracking hashes
+                        $script:bullets_compressed[$line] = $size
+                        $script:bullets_and_lines[$line_count] = $line
+                        if($script:bullets_and_sizes.contains($original))
+                        {
+                            $script:bullets_and_sizes.remove($original);
+                            if(!($script:bullets_and_sizes.contains($line)))
+                            {
+                                $script:bullets_and_sizes.add($line,$size);
+                            }
+                        }             
+                    }#Already Compressed
+                    else
+                    {
+                        #write-host Already Compressed
+                    }
+                }#Blank Line
+                $position = $position + $line.Length + 1;
+            }#Foreach Line
+        
+            update_sizer_box
+        }#Compression ON
+    }#Classic Format
+    ########################################################
+    ##Format MyEval Compression
+    if($script:settings['EVAL_FORMAT'] -eq 2)
+    {
+        ###Remove all Half-Spaces
+        $ghost_editor.text = $ghost_editor.text -replace " | | ", " "
+    }
 
     $ghost_editor.ZoomFactor = $editor.ZoomFactor
     $ghost_editor.SelectAll();
@@ -5827,6 +5702,7 @@ function initial_checks
         $settings_writer.write("SAVE_HISTORY_THRESHOLD,200`r`n");
         $settings_writer.write("SIZER_BOX_INVERTED,1`r`n");
         $settings_writer.write("MEMORY_FLUSHING,3`r`n");
+        $settings_writer.write("EVAL_FORMAT'],2`r`n");
         $settings_writer.close();
     }
 
@@ -6245,6 +6121,7 @@ function load_settings
         if($script:settings['TEXT_COMPRESSION'] -eq $null)        {$changes = 1; $script:settings['TEXT_COMPRESSION'] = 4}
         if($script:settings['CLOCK_SPEED'] -eq $null)             {$changes = 1; $script:settings['CLOCK_SPEED'] = 500}
         if($script:settings['SIZER_BOX_INVERTED'] -eq $null)      {$changes = 1; $script:settings['SIZER_BOX_INVERTED'] = 1}
+        if($script:settings['EVAL_FORMAT'] -eq $null)             {$changes = 1; $script:settings['EVAL_FORMAT'] = 2}
         if($changes -eq 1)
         {
             update_settings
@@ -13105,103 +12982,133 @@ function sidekick_display
             $left_panel.controls.Add($find_input);
 
 
-            ################################################################################
-            ######Compression Label#########################################################
-            $y_pos = $y_pos + 45;
-            $compression_label                          = New-Object system.Windows.Forms.Label
-            $compression_label.text                     = "Text Compression";
-            $compression_label.ForeColor                = $script:theme_settings['DIALOG_SUB_HEADER_COLOR']
-            #$compression_label.backcolor = "green"
-            $compression_label.Anchor                   = 'top,left'
-            #$compression_label.autosize = $true
-            $compression_label.width                    = 200
-            $compression_label.height                   = 30
-            $compression_label.TextAlign = "MiddleCenter"
-            $compression_label.location                 = New-Object System.Drawing.Point((($left_panel.width / 2) - ($compression_label.Width / 2)),$y_pos)
-            $compression_label.Font                     = [Drawing.Font]::New($script:theme_settings['INTERFACE_FONT'], ([Decimal]$script:theme_settings['INTERFACE_FONT_SIZE'] ))
-            $left_panel.controls.Add($compression_label);
-
 
             ################################################################################
-            ######Compression Trackbar######################################################
-            $y_pos = $y_pos + 30;
-            $script:compression_trackbar_label = New-Object System.Windows.Forms.Label
-            $compression_trackbar = New-Object System.Windows.Forms.TrackBar
-            $compression_trackbar.Width = 200
-            $compression_trackbar.Location = New-Object System.Drawing.Point((($left_panel.width / 2) - ($compression_trackbar.Width / 2)),$y_pos)
-            $compression_trackbar.Orientation = "Horizontal"
-            $compression_trackbar.Height = 40
-            $compression_trackbar.TickFrequency = 1
-            $compression_trackbar.TickStyle = "TopLeft"
-            $compression_trackbar.SetRange(1, 5) 
-            $compression_trackbar.AccessibleName = "Off"
-            $compression_trackbar.add_ValueChanged({
-                $script:settings['TEXT_COMPRESSION'] = $this.value
-                if($this.value -eq 1)
-                {
-                    $script:space_hash.Clear();
-                    $this.AccessibleName = "Off"
-                    $script:compression_trackbar_label.Text = $this.AccessibleName
-                    $script:space_hash.Clear();
-                    $script:bullets_compressed = new-object System.Collections.Hashtable
-                }
-                if($this.value -eq 2)
-                {
-                    $script:space_hash.Clear();
-                    $script:bullets_compressed = new-object System.Collections.Hashtable
-                    $this.AccessibleName = "Reset"
-                    $script:compression_trackbar_label.Text = $this.AccessibleName
-                    $script:space_hash.Clear();
-                    #$script:space_hash.add(" ",14.2159411269359)
-                }
-                elseif($this.value -eq 3)
-                {
-                    $this.AccessibleName = "Low"
-                    $script:compression_trackbar_label.Text = $this.AccessibleName
-                    $script:space_hash.Clear();
-                    $script:bullets_compressed = new-object System.Collections.Hashtable
-                    #$script:space_hash.add(" ",14.2159411269359)
-                    $script:space_hash.add(" ",11.3886113886114)
-                }
-                elseif($this.value -eq 4)
-                {
-                    $this.AccessibleName = "Medium"
-                    $script:compression_trackbar_label.Text = $this.AccessibleName
-                    $script:space_hash.Clear();
-                    $script:bullets_compressed = new-object System.Collections.Hashtable
-                    #$script:space_hash.add(" ",14.2159411269359)
-                    $script:space_hash.add(" ",11.3886113886114)
-                    $script:space_hash.add(" ",9.47735191637631)
-                }
-                elseif($this.value -eq 5)
-                {
-                    $this.AccessibleName = "High"
-                    $script:compression_trackbar_label.Text = $this.AccessibleName
-                    $script:space_hash.Clear();
-                    $script:bullets_compressed = new-object System.Collections.Hashtable
-                    #$script:space_hash.add(" ",14.2159411269359)
-                    $script:space_hash.add(" ",11.3886113886114)
-                    $script:space_hash.add(" ",9.47735191637631)
-                    $script:space_hash.add(" ",4.75524475524475)
-                }
-                $Script:recent_editor_text = "Changed"
-                update_settings
-            })
-            $compression_trackbar.Value = $script:settings['TEXT_COMPRESSION']
+            ######Compression Original######################################################
+            if($script:settings['EVAL_FORMAT'] -eq 1)
+            {
+
+
+                ################################################################################
+                ######Compression Label#########################################################
+                $y_pos = $y_pos + 45;
+                $compression_label                          = New-Object system.Windows.Forms.Label
+                $compression_label.text                     = "Text Compression";
+                $compression_label.ForeColor                = $script:theme_settings['DIALOG_SUB_HEADER_COLOR']
+                #$compression_label.backcolor = "green"
+                $compression_label.Anchor                   = 'top,left'
+                #$compression_label.autosize = $true
+                $compression_label.width                    = 200
+                $compression_label.height                   = 30
+                $compression_label.TextAlign = "MiddleCenter"
+                $compression_label.location                 = New-Object System.Drawing.Point((($left_panel.width / 2) - ($compression_label.Width / 2)),$y_pos)
+                $compression_label.Font                     = [Drawing.Font]::New($script:theme_settings['INTERFACE_FONT'], ([Decimal]$script:theme_settings['INTERFACE_FONT_SIZE'] ))
+                $left_panel.controls.Add($compression_label);
+
+
+                ################################################################################
+                ######Compression Trackbar######################################################
+                $y_pos = $y_pos + 30;
+                $script:compression_trackbar_label = New-Object System.Windows.Forms.Label
+                $compression_trackbar = New-Object System.Windows.Forms.TrackBar
+                $compression_trackbar.Width = 200
+                $compression_trackbar.Location = New-Object System.Drawing.Point((($left_panel.width / 2) - ($compression_trackbar.Width / 2)),$y_pos)
+                $compression_trackbar.Orientation = "Horizontal"
+                $compression_trackbar.Height = 40
+                $compression_trackbar.TickFrequency = 1
+                $compression_trackbar.TickStyle = "TopLeft"
+                $compression_trackbar.SetRange(1, 5) 
+                $compression_trackbar.AccessibleName = "Off"
+                $compression_trackbar.add_ValueChanged({
+                    $script:settings['TEXT_COMPRESSION'] = $this.value
+                    if($this.value -eq 1)
+                    {
+                        $script:space_hash.Clear();
+                        $this.AccessibleName = "Off"
+                        $script:compression_trackbar_label.Text = $this.AccessibleName
+                        $script:space_hash.Clear();
+                        $script:bullets_compressed = new-object System.Collections.Hashtable
+                    }
+                    if($this.value -eq 2)
+                    {
+                        $script:space_hash.Clear();
+                        $script:bullets_compressed = new-object System.Collections.Hashtable
+                        $this.AccessibleName = "Reset"
+                        $script:compression_trackbar_label.Text = $this.AccessibleName
+                        $script:space_hash.Clear();
+                        #$script:space_hash.add(" ",14.2159411269359)
+                    }
+                    elseif($this.value -eq 3)
+                    {
+                        $this.AccessibleName = "Low"
+                        $script:compression_trackbar_label.Text = $this.AccessibleName
+                        $script:space_hash.Clear();
+                        $script:bullets_compressed = new-object System.Collections.Hashtable
+                        #$script:space_hash.add(" ",14.2159411269359)
+                        $script:space_hash.add(" ",11.3886113886114)
+                    }
+                    elseif($this.value -eq 4)
+                    {
+                        $this.AccessibleName = "Medium"
+                        $script:compression_trackbar_label.Text = $this.AccessibleName
+                        $script:space_hash.Clear();
+                        $script:bullets_compressed = new-object System.Collections.Hashtable
+                        #$script:space_hash.add(" ",14.2159411269359)
+                        $script:space_hash.add(" ",11.3886113886114)
+                        $script:space_hash.add(" ",9.47735191637631)
+                    }
+                    elseif($this.value -eq 5)
+                    {
+                        $this.AccessibleName = "High"
+                        $script:compression_trackbar_label.Text = $this.AccessibleName
+                        $script:space_hash.Clear();
+                        $script:bullets_compressed = new-object System.Collections.Hashtable
+                        #$script:space_hash.add(" ",14.2159411269359)
+                        $script:space_hash.add(" ",11.3886113886114)
+                        $script:space_hash.add(" ",9.47735191637631)
+                        $script:space_hash.add(" ",4.75524475524475)
+                    }
+                    $Script:recent_editor_text = "Changed"
+                    update_settings
+                })
+                $compression_trackbar.Value = $script:settings['TEXT_COMPRESSION']
             
 
+                ################################################################################
+                ######Compression Trackbar Label################################################
+                $y_pos = $y_pos + 35;   
+                $script:compression_trackbar_label.Font   = [Drawing.Font]::New($script:theme_settings['INTERFACE_FONT'], ([Decimal]$script:theme_settings['INTERFACE_FONT_SIZE'] ))
+                $script:compression_trackbar_label.width = 200
+                $script:compression_trackbar_label.Location = New-Object System.Drawing.Point((($left_panel.width / 2) - ($script:compression_trackbar_label.Width / 2)),$y_pos)
+                $script:compression_trackbar_label.ForeColor                = $script:theme_settings['DIALOG_SUB_HEADER_COLOR']
+                #$script:compression_trackbar_label.BackColor = "Green"
+                $script:compression_trackbar_label.TextAlign = "MiddleCenter"
+                $script:compression_trackbar_label.Text = $compression_trackbar.AccessibleName
+                $left_panel.Controls.Add($script:compression_trackbar_label)
+                $left_panel.controls.Add($compression_trackbar)
+
+            }#####
+
             ################################################################################
-            ######Compression Trackbar Label################################################
-            $y_pos = $y_pos + 35;   
-            $script:compression_trackbar_label.Font   = [Drawing.Font]::New($script:theme_settings['INTERFACE_FONT'], ([Decimal]$script:theme_settings['INTERFACE_FONT_SIZE'] ))
-            $script:compression_trackbar_label.width = 200
-            $script:compression_trackbar_label.Location = New-Object System.Drawing.Point((($left_panel.width / 2) - ($script:compression_trackbar_label.Width / 2)),$y_pos)
-            $script:compression_trackbar_label.ForeColor                = $script:theme_settings['DIALOG_SUB_HEADER_COLOR']
-            #$script:compression_trackbar_label.BackColor = "Green"
-            $script:compression_trackbar_label.TextAlign = "MiddleCenter"
-            $script:compression_trackbar_label.Text = $compression_trackbar.AccessibleName
-            $left_panel.Controls.Add($script:compression_trackbar_label)
-            $left_panel.controls.Add($compression_trackbar)
+            ######Compression MyEval########################################################
+            if($script:settings['EVAL_FORMAT'] -eq 2)
+            {
+                $y_pos = $y_pos + 45;
+                $compression_label                          = New-Object system.Windows.Forms.Label
+                $compression_label.text                     = "Text Compression Off`n`nHalf-Spaces Auto Removed!";
+                $compression_label.ForeColor                = $script:theme_settings['DIALOG_SUB_HEADER_COLOR']
+                #$compression_label.backcolor = "green"
+                $compression_label.Anchor                   = 'top,left'
+                #$compression_label.autosize = $true
+                $compression_label.width                    = 230
+                $compression_label.height                   = 80
+                $compression_label.TextAlign = "MiddleCenter"
+                $compression_label.location                 = New-Object System.Drawing.Point((($left_panel.width / 2) - ($compression_label.Width / 2)),$y_pos)
+                $compression_label.Font                     = [Drawing.Font]::New($script:theme_settings['INTERFACE_FONT'], ([Decimal]$script:theme_settings['INTERFACE_FONT_SIZE'] ))
+                $left_panel.controls.Add($compression_label);
+
+            }
+            #write-host $script:settings['EVAL_FORMAT']
 
 
         } 
@@ -13537,6 +13444,70 @@ function system_settings_dialog
     $title_label.location                 = New-Object System.Drawing.Point((($system_settings_form.width / 2) - ($title_label.width / 2)),$y_pos)
     $title_label.Font                     = [Drawing.Font]::New($script:theme_settings['INTERFACE_FONT'], ([Decimal]$script:theme_settings['INTERFACE_FONT_SIZE'] + 4))
     $system_settings_form.controls.Add($title_label);
+
+    ################################################################################
+    ######Eval Format Label##########################################################
+    $y_pos = $y_pos + 45
+    $eval_format_type_label                          = New-Object system.Windows.Forms.Label
+    $eval_format_type_label.text                     = "Text Length Format:"
+    $eval_format_type_label.ForeColor                = $script:theme_settings['DIALOG_SUB_HEADER_COLOR']
+    #$eval_format_type_label.backcolor = "green"
+    $eval_format_type_label.Anchor                   = 'top,left'
+    #$eval_format_type_label.autosize = $true
+    $eval_format_type_label.width                    = 225
+    $eval_format_type_label.height                   = 30
+    $eval_format_type_label.TextAlign                 = "middleright"
+    $eval_format_type_label.location                 = New-Object System.Drawing.Point(15,$y_pos)
+    $eval_format_type_label.Font                     = [Drawing.Font]::New($script:theme_settings['INTERFACE_FONT'], ([Decimal]$script:theme_settings['INTERFACE_FONT_SIZE'] ))
+    $system_settings_form.controls.Add($eval_format_type_label);
+    
+
+    ################################################################################
+    ######Eval Format Trackbar#######################################################
+    $eval_format_type_trackbar_label = New-Object System.Windows.Forms.Label
+    $eval_format_type_trackbar = New-Object System.Windows.Forms.TrackBar
+    $eval_format_type_trackbar.Width = 80
+    $eval_format_type_trackbar.Location = New-Object System.Drawing.Point(($eval_format_type_label.location.x + $eval_format_type_label.width + 5),($y_pos -2))
+    $eval_format_type_trackbar.Orientation = "Horizontal"
+    $eval_format_type_trackbar.Height = 30
+    $eval_format_type_trackbar.TickFrequency = 1
+    $eval_format_type_trackbar.TickStyle = "TopLeft"
+    $eval_format_type_trackbar.SetRange(1, 2) 
+    $eval_format_type_trackbar.LargeChange = 1;
+    $eval_format_type_trackbar.AccessibleName = "Off"
+    $eval_format_type_trackbar.value = 1
+    $eval_format_type_trackbar.add_ValueChanged({
+        if($this.value -eq 1)
+        {
+            $eval_format_type_trackbar_label.text = "Classic Format"
+            $script:settings['EVAL_FORMAT'] = 1;
+        }
+        else
+        {
+            $eval_format_type_trackbar_label.text = "MyEval Format (115 Characters)"
+            $script:settings['EVAL_FORMAT'] = 2;
+            
+        }
+        $script:sidekickgui = "New"
+        sidekick_display
+        update_sizer_box
+        update_settings;
+    })
+    $eval_format_type_trackbar.Value = $script:settings['EVAL_FORMAT']
+
+    ################################################################################
+    ######Calculator Trackbar Label#################################################
+    $eval_format_type_trackbar_label.Font   = [Drawing.Font]::New($script:theme_settings['INTERFACE_FONT'], ([Decimal]$script:theme_settings['INTERFACE_FONT_SIZE'] ))
+    $eval_format_type_trackbar_label.width = 350
+    #$eval_format_type_trackbar_label.backcolor = "green"
+    $eval_format_type_trackbar_label.text = "MyEval Format (115 Characters)"
+    $eval_format_type_trackbar_label.height = 30
+    $eval_format_type_trackbar_label.Location = New-Object System.Drawing.Point(($eval_format_type_trackbar.location.x + $eval_format_type_trackbar.width + 5),$y_pos)
+    $eval_format_type_trackbar_label.ForeColor                = $script:theme_settings['DIALOG_FONT_COLOR']
+    $eval_format_type_trackbar_label.TextAlign = "Middleleft"
+
+    $system_settings_form.Controls.Add($eval_format_type_trackbar_label)
+    $system_settings_form.controls.Add($eval_format_type_trackbar)
 
 
 
@@ -14334,6 +14305,13 @@ function about_dialog
     $version_box.ScrollBars = "Vertical"
     $version_box.AccessibleName = "";
     $version_box.text = "
+    --------------------------------------------------------------------
+    Version 1.7:
+    --------------------------------------------------------------------
+    Date: 1 Nov 2022
+    New Feature: Added support for MyEval 115 Character Blocks. You can 
+    switch between modes under System Settings.
+
     --------------------------------------------------------------------
     Version 1.6:
     --------------------------------------------------------------------
